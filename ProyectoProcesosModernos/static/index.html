@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Wiki VG · RAG (Minecraft)</title>
+  <!-- Fuente pixel/retro -->
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --grass:#3fa33f;
+      --leaf:#2d7d2c;
+      --dirt:#6b4f2a;
+      --stone:#4b4b4b;
+      --text:#e9ffe9;
+      --accent:#a4ff6a;
+      --card:#163b16aa;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      color:var(--text);
+      background:
+        linear-gradient(0deg, rgba(0,0,0,.4), rgba(0,0,0,.2)),
+        repeating-linear-gradient(45deg, #245a24 0 10px, #2d7d2c 10px 20px);
+      font-family: 'VT323', monospace;
+      letter-spacing:.3px;
+    }
+    .wrap{
+      max-width:900px;
+      margin:40px auto;
+      padding:16px;
+    }
+    .title{
+      font-family:'Press Start 2P', cursive;
+      font-size:26px;
+      text-shadow:3px 3px 0 #1a1a1a;
+      display:flex;align-items:center;gap:12px;
+    }
+    .block{
+      background:var(--card);
+      border:4px solid #0f260f;
+      box-shadow:0 6px 0 #0b1b0b, 0 10px 20px rgba(0,0,0,.4);
+      border-radius:8px;
+      padding:16px;
+      margin-top:18px;
+      backdrop-filter: blur(2px);
+    }
+    label{display:block;margin:6px 0 8px 2px;font-size:20px}
+    textarea, input{
+      width:100%;
+      font-family:'VT323', monospace;
+      font-size:20px;
+      padding:10px 12px;
+      color:#102110;
+      border:4px solid #0f280f;
+      outline:none;
+      background:#eaffea;
+      border-radius:8px;
+      box-shadow: inset 0 3px 0 #b9d9b9;
+    }
+    textarea{min-height:90px;resize:vertical}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px}
+    button{
+      font-family:'Press Start 2P', cursive;
+      font-size:14px;
+      padding:14px 18px;
+      border:4px solid #0b1f0b;
+      background:linear-gradient(#6fd66f, #3fa33f);
+      color:#072107;
+      border-radius:10px;
+      box-shadow:0 5px 0 #1b511b;
+      cursor:pointer;
+      transition:transform .05s ease;
+    }
+    button:active{transform:translateY(2px); box-shadow:0 3px 0 #1b511b}
+    .pill{
+      padding:8px 10px;font-size:16px;background:#eaffea;border-radius:8px;color:#0d2c0d;border:2px solid #0f280f
+    }
+    .answer{
+      white-space:pre-wrap;
+      background:#0f260fb3;
+      border:3px solid #0b1f0b;
+      border-radius:8px;
+      padding:14px;
+      line-height:1.35;
+      font-size:20px;
+    }
+    .sources{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+    .tag{
+      background:linear-gradient(#ffe37f,#ffd24a);
+      color:#3b2a05;border:3px solid #2c2104;border-radius:10px;padding:6px 10px;font-size:16px
+    }
+    .footer{
+      opacity:.8;font-size:16px;margin-top:12px
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="title">
+      🧱 Wiki · RAG <span class="pill">Minecraft</span>
+    </div>
+
+    <div class="block">
+      <label for="q">Escribe tu pregunta</label>
+      <textarea id="q" placeholder="Ej: ¿Cómo llego al End en Minecraft?"></textarea>
+      <div class="row">
+        <button id="askBtn">Preguntar</button>
+        <span id="status" class="pill" style="display:none">⛏️ Minando conocimiento...</span>
+      </div>
+    </div>
+
+    <div class="block">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <span style="font-family:'Press Start 2P'">Respuesta</span>
+      </div>
+      <div id="answer" class="answer">—</div>
+      <div class="sources" id="sources"></div>
+      <div class="footer">Tip: agrega el juego o versión para respuestas más precisas.</div>
+    </div>
+  </div>
+
+  <script>
+    const askBtn = document.getElementById('askBtn');
+    const qEl = document.getElementById('q');
+    const answerEl = document.getElementById('answer');
+    const sourcesEl = document.getElementById('sources');
+    const statusEl = document.getElementById('status');
+
+    async function ask() {
+      const question = qEl.value.trim();
+      if (!question) {
+        answerEl.textContent = "Escribe una pregunta primero.";
+        return;
+      }
+      sourcesEl.innerHTML = "";
+      statusEl.style.display = "inline-block";
+      answerEl.textContent = "⛏️ Buscando fragmentos relevantes...";
+
+      try {
+        const res = await fetch("/ask", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ question })
+        });
+
+        if (!res.ok) {
+          const txt = await res.text();
+          answerEl.textContent = "Error del servidor: " + txt;
+          statusEl.style.display = "none";
+          return;
+        }
+
+        const data = await res.json();
+        answerEl.textContent = data.answer || "Sin respuesta.";
+        sourcesEl.innerHTML = "";
+        (data.sources || []).forEach(t => {
+          const span = document.createElement("span");
+          span.className = "tag";
+          span.textContent = t;
+          sourcesEl.appendChild(span);
+        });
+      } catch (e) {
+        answerEl.textContent = "No se pudo conectar con el servidor: " + e;
+      } finally {
+        statusEl.style.display = "none";
+      }
+    }
+
+    askBtn.addEventListener('click', ask);
+    qEl.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        ask();
+      }
+    });
+  </script>
+</body>
+</html>
