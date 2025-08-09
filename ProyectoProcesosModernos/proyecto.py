@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import uvicorn
-import os
+
 
 # =========================
 # CONFIG
@@ -137,3 +137,4 @@ def ask(req: AskReq):
 if __name__ == "__main__":
     # Esto levanta FastAPI en local
     uvicorn.run(app, host="127.0.0.1", port=8000)
+
