@@ -95,6 +95,9 @@
     .footer{
       opacity:.8;font-size:16px;margin-top:12px
     }
+    .ask-more-btn{
+      enabled:false;
+    }
   </style>
 </head>
 <body>
@@ -108,6 +111,7 @@
       <textarea id="q" placeholder="Ej: ¿Cómo llego al End en Minecraft?"></textarea>
       <div class="row">
         <button id="askBtn">Preguntar</button>
+        <button id="askMoreBtn" class="ask-more-btn">Profundizar respuesta</button>
         <span id="status" class="pill" style="display:none">⛏️ Minando conocimiento...</span>
       </div>
     </div>
@@ -128,6 +132,8 @@
     const answerEl = document.getElementById('answer');
     const sourcesEl = document.getElementById('sources');
     const statusEl = document.getElementById('status');
+    const askMoreBtn = document.getElementById('askMoreBtn');
+    let answerData;
 
     async function ask() {
       const question = qEl.value.trim();
@@ -150,13 +156,15 @@
           const txt = await res.text();
           answerEl.textContent = "Error del servidor: " + txt;
           statusEl.style.display = "none";
+          askMoreBtn.style.enabled = false;
           return;
         }
 
-        const data = await res.json();
-        answerEl.textContent = data.answer || "Sin respuesta.";
+        answerData = await res.json();
+        askMoreBtn.style.enabled = true;
+        answerEl.textContent = answerData.answer || "Sin respuesta.";
         sourcesEl.innerHTML = "";
-        (data.sources || []).forEach(t => {
+        (answerData.sources || []).forEach(t => {
           const span = document.createElement("span");
           span.className = "tag";
           span.textContent = t;
@@ -169,6 +177,27 @@
       }
     }
 
+    async function askMore() {
+      const res = await fetch("/ask-more", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(answerData)
+      });
+
+      if (!res.ok) {
+        const txt = await res.text();
+        answerEl.textContent = "Error del servidor: " + txt;
+        statusEl.style.display = "none";
+        askMoreBtn.style.enabled = false;
+        return;
+      }
+        answerData = await res.json();
+        askMoreBtn.style.enabled = true;
+        answerEl.textContent = answerData.answer || "Sin respuesta.";
+        sourcesEl.innerHTML = "";
+    }
+
+    askMoreBtn.addEventListener('click', askMore);
     askBtn.addEventListener('click', ask);
     qEl.addEventListener('keydown', e => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
