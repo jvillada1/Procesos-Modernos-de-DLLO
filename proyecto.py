@@ -9,6 +9,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import uvicorn
+import extended_answer_agent
+
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+DATA_PATH = BASE_DIR / "Data.json"
 
 
 # =========================
@@ -20,8 +26,7 @@ TOP_K = 6
 SIM_THRESHOLD = 0.2  # si la similitud máxima es menor, consideramos que no hay buen contexto
 
 # === API(rellenar) ===
-#API_KEY = os.getenv("LLM_API_KEY", "") 
-API_KEY=""
+API_KEY = os.getenv("API_KEY", "") 
 #url = os.getenv("LLM_URL", "")  # p.ej. "https://api.groq.com/openai/v1/chat/completions" 
 url="https://api.groq.com/openai/v1/chat/completions"
 
@@ -33,8 +38,12 @@ headers = {
 # =========================
 # 1) DATOS (ejemplo). En producción, carga desde archivos .md/.txt y trocea.
 # ========================= 
-with open("Data.json", "r", encoding="utf-8") as f:
-    DOCS = json.load(f)
+if os.getenv("DISABLE_HEAVY_INIT") == "1":
+    print("Skipping heavy initialization for tests (DISABLE_HEAVY_INIT=1).")
+    DOCS = [{"title": "Stub Doc", "text": "Stub content"}]
+else:
+    with open(DATA_PATH, "r", encoding="utf-8") as f:
+        DOCS = json.load(f)
 
 # =========================
 # 2) MODELO + INDEXACIÓN EN MEMORIA
@@ -71,6 +80,14 @@ def build_context(hits: List[Tuple[Dict, float]]) -> str:
         bloques.append(f"{tag}\n{d['text']}")
     return "\n\n---\n\n".join(bloques)
 
+def ask_more_with_agent(answer) -> Dict:
+    extended_agent = extended_answer_agent.ExtendedAnswerAgent(
+        answer=answer,
+        api_key=API_KEY
+    )
+
+    return extended_agent.search()
+
 def ask_llm_with_rag(question: str) -> Dict:
     hits = search_similar(question, k=TOP_K)
     # Chequeo de calidad mínimo: sin buen match, pide aclaración
@@ -86,7 +103,7 @@ def ask_llm_with_rag(question: str) -> Dict:
 Pregunta: {question}
 
 Contexto:
-{context}
+    {context}
 """
 
     payload = {
@@ -125,6 +142,9 @@ app.add_middleware(
 class AskReq(BaseModel):
     question: str
 
+class AskMoreReq(BaseModel):
+    answer: str
+
 @app.get("/")
 def root():
     return FileResponse(os.path.join("static", "index.html"))
@@ -132,6 +152,11 @@ def root():
 @app.post("/ask")
 def ask(req: AskReq):
     out = ask_llm_with_rag(req.question)
+    return out
+
+@app.post("/ask-more")
+def ask_more(req: AskMoreReq):
+    out = ask_more_with_agent(req.answer)
     return out
 
 if __name__ == "__main__":

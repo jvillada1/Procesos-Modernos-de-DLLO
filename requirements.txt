@@ -4,3 +4,6 @@ pydantic==2.8.2
 sentence-transformers==2.7.0
 numpy==1.26.4
 requests==2.32.3
+groq==0.31.0
+pytest_bdd
+pytest
