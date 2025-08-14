@@ -27,8 +27,6 @@ class DevOpsAgent:
         - Estrategia de monitoreo y logging.
         - Escalabilidad y rendimiento.
         - Seguridad y gestión de secretos.
-
-        y coloca (¡) cada vez que interactues
         """
 
         logger.info("Generando plan DevOps basado en la respuesta dada.")

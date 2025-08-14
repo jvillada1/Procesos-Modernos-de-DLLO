@@ -169,7 +169,7 @@ def devops_plan(req: DevOpsAgent):
         answer=req.answer,
         api_key=API_KEY
     )
-    return agent.create_devops_plan()
+    return agent.create_plan()
 
 @app.post("/full-devops")
 def full_devops(req: AskReq):
