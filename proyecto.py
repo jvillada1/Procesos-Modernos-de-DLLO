@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import uvicorn
 import extended_answer_agent
+import agent_devops
 
 from pathlib import Path
 
@@ -145,6 +146,9 @@ class AskReq(BaseModel):
 class AskMoreReq(BaseModel):
     answer: str
 
+class DevOpsAgent(BaseModel):
+    answer: str
+
 @app.get("/")
 def root():
     return FileResponse(os.path.join("static", "index.html"))
@@ -158,6 +162,37 @@ def ask(req: AskReq):
 def ask_more(req: AskMoreReq):
     out = ask_more_with_agent(req.answer)
     return out
+
+@app.post("/devops-plan")
+def devops_plan(req: DevOpsAgent):
+    agent = agent_devops.DevOpsAgent(
+        answer=req.answer,
+        api_key=API_KEY
+    )
+    return agent.create_plan()
+
+@app.post("/full-devops")
+def full_devops(req: AskReq):
+    # Paso 1: Obtener respuesta inicial con RAG
+    rag_out = ask_llm_with_rag(req.question)
+
+    if not rag_out["answer"]:
+        return {"error": "No se pudo obtener una respuesta inicial válida."}
+
+    # Paso 2: Ampliar respuesta con ExtendedAnswerAgent
+    extended_out = ask_more_with_agent(rag_out["answer"])
+
+    # Paso 3: Generar plan DevOps con DevOpsAgent
+    devops_out = agent_devops.DevOpsAgent(
+        answer=extended_out["answer"],
+        api_key=API_KEY
+    ).create_plan()
+
+    return {
+        "rag_answer": rag_out,
+        "extended_answer": extended_out,
+        "devops_plan": devops_out
+    }
 
 if __name__ == "__main__":
     # Esto levanta FastAPI en local
