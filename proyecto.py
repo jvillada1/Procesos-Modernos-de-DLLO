@@ -186,10 +186,16 @@ def full_devops(req: AskReq):
         api_key=API_KEY
     ).create_plan()
 
+    # Concatenamos todo
+    concatenated_answer = (
+        f"📌 Respuesta inicial (RAG):\n{rag_out['answer']}\n\n"
+        f"📝 Respuesta ampliada:\n{extended_out['answer']}\n\n"
+        f"⚙️ Plan DevOps:\n{devops_out['devops_plan']}"
+    )
+
     return {
-        "rag_answer": rag_out,
-        "extended_answer": extended_out,
-        "devops_plan": devops_out
+        "answer": concatenated_answer,
+        "sources": rag_out["sources"]
     }
 
 @app.post("/translate")

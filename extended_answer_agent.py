@@ -24,7 +24,7 @@ class ExtendedAnswerAgent:
         logger.info(f"Prompt para extended answer: {self.answer}")
 
         response = client.chat.completions.create(
-            model="compound-beta",
+            model="meta-llama/llama-4-maverick-17b-128e-instruct",
             messages=[
                 {"role": "system", "content": "Eres un asistente experto en Minecraft que proporciona información detallada y precisa."},
                 {"role": "user", "content": prompt},
