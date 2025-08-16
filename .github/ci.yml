@@ -1,0 +1,40 @@
+name: CI - Wiki
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ "**" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: [ "3.11" ]  # Add more versions if you want
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-bdd
+
+      - name: Tests
+        env:
+          API_KEY: dummy
+          DISABLE_HEAVY_INIT: "1"
+          PYTHONPATH: .
+        run: |
+          pytest -q
+
