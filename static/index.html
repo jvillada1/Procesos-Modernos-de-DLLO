@@ -114,6 +114,8 @@
       <div class="row">
         <button id="askBtn">Preguntar</button>
         <button id="askMoreBtn" disabled>Profundizar respuesta</button>
+        <button id="devOpsAgentBtn" disabled>Diseñar Plan DevOps</button>
+        <button id="fullDevOpsBtn" disabled>Pipeline Full DevOps</button>
         <select id="langSelect" disabled>
           <option value="en">Inglés</option>
           <option value="es">Español</option>
@@ -148,6 +150,8 @@
     const translateBtn = document.getElementById('translateBtn');
     const langSelect = document.getElementById('langSelect');
     const restoreBtn = document.getElementById('restoreBtn');
+    const devOpsAgentBtn = document.getElementById('devOpsAgentBtn');
+    const fullDevOpsBtn = document.getElementById('fullDevOpsBtn');
 
     let answerData;
     let originalAnswer = null;
@@ -162,9 +166,11 @@
       statusEl.style.display = "inline-block";
       answerEl.textContent = "⛏️ Buscando fragmentos relevantes...";
       askMoreBtn.disabled = true;
+      devOpsAgentBtn.disabled = true;
+      fullDevOpsBtn.disabled = true;
       translateBtn.disabled = true;
       langSelect.disabled = true;
-      restoreBtn.disabled = true;
+      restoreBtn.disabled = true;      
 
       try {
         const res = await fetch("/ask", {
@@ -182,6 +188,8 @@
         answerData = await res.json();
         originalAnswer = answerData.answer;
         askMoreBtn.disabled = false;
+        devOpsAgentBtn.disabled = false;
+        fullDevOpsBtn.disabled = false;
         translateBtn.disabled = false;
         langSelect.disabled = false;
         restoreBtn.disabled = true;
@@ -210,6 +218,8 @@
       statusEl.style.display = "inline-block";
       answerEl.textContent = "⛏️ Profundizando...";
       askMoreBtn.disabled = true;
+      devOpsAgentBtn.disabled = true;
+      fullDevOpsBtn.disabled = true;
 
       try {
         const res = await fetch("/ask-more", {
@@ -236,6 +246,111 @@
         });
 
         askMoreBtn.disabled = false;
+        devOpsAgentBtn.disabled = false;
+        fullDevOpsBtn.disabled = false;
+        translateBtn.disabled = false;
+        restoreBtn.disabled = true;
+      } catch (e) {
+        answerEl.textContent = "No se pudo conectar con el servidor: " + e;
+      } finally {
+        statusEl.style.display = "none";
+      }
+    }
+
+    async function devOpsAgent() {
+      // Determinar con qué texto trabajar
+      let baseAnswer = null;
+      if (answerData) {
+        if (answerData.answer) {
+          baseAnswer = answerData.answer;
+        } else if (answerData.devops_plan) {
+          baseAnswer = answerData.devops_plan;
+        } else if (answerData.extended_answer) {
+          baseAnswer = answerData.extended_answer;
+        }
+      }
+
+      if (!baseAnswer) {
+        answerEl.textContent = "No hay respuesta previa para generar un plan DevOps.";
+        return;
+      }
+
+      statusEl.style.display = "inline-block";
+      answerEl.textContent = "⛏️ Generando plan DevOps...";
+      askMoreBtn.disabled = true;
+      devOpsAgentBtn.disabled = true;
+      fullDevOpsBtn.disabled = true;
+
+      try {
+        const res = await fetch("/devops-plan", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ answer: baseAnswer })
+        });
+
+        if (!res.ok) {
+          const txt = await res.text();
+          answerEl.textContent = "Error del servidor: " + txt;
+          return;
+        }
+
+        answerData = await res.json();        
+        originalAnswer = answerData.devops_plan;
+        answerEl.textContent = answerData.devops_plan || "Sin respuesta.";
+        sourcesEl.innerHTML = "";
+
+        askMoreBtn.disabled = false;
+        devOpsAgentBtn.disabled = false;
+        fullDevOpsBtn.disabled = false;
+        translateBtn.disabled = false;
+        restoreBtn.disabled = true;
+      } catch (e) {
+        answerEl.textContent = "No se pudo conectar con el servidor: " + e;
+      } finally {
+        statusEl.style.display = "none";
+      }
+    }
+
+    async function fullDevOps() {
+      const question = qEl.value.trim();
+      if (!question) {
+        answerEl.textContent = "Escribe una pregunta primero.";
+        return;
+      }
+
+      statusEl.style.display = "inline-block";
+      answerEl.textContent = "⛏️ Ejecutando pipeline DevOps...";
+      askMoreBtn.disabled = true;
+      devOpsAgentBtn.disabled = true;
+      fullDevOpsBtn.disabled = true;
+
+      try {
+        const res = await fetch("/full-devops", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ question })
+        });
+
+        if (!res.ok) {
+          const txt = await res.text();
+          answerEl.textContent = "Error del servidor: " + txt;
+          return;
+        }
+
+        answerData = await res.json();
+        originalAnswer = answerData.answer;
+        answerEl.innerText = answerData.answer || "Sin respuesta.";
+        sourcesEl.innerHTML = "";
+        (answerData.sources || []).forEach(t => {
+          const span = document.createElement("span");
+          span.className = "tag";
+          span.textContent = t;
+          sourcesEl.appendChild(span);
+        });
+
+        askMoreBtn.disabled = false;
+        devOpsAgentBtn.disabled = false;
+        fullDevOpsBtn.disabled = false;
         translateBtn.disabled = false;
         restoreBtn.disabled = true;
       } catch (e) {
@@ -292,8 +407,10 @@
 
     askBtn.addEventListener('click', ask);
     askMoreBtn.addEventListener('click', askMore);
+    devOpsAgentBtn.addEventListener('click', devOpsAgent);
+    fullDevOpsBtn.addEventListener('click', fullDevOps);
     translateBtn.addEventListener('click', translate);
-    restoreBtn.addEventListener('click', restoreOriginal);
+    restoreBtn.addEventListener('click', restoreOriginal);    
 
     qEl.addEventListener('keydown', e => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {

@@ -32,7 +32,7 @@ class DevOpsAgent:
         logger.info("Generando plan DevOps basado en la respuesta dada.")
 
         response = client.chat.completions.create(
-            model="compound-beta",
+            model="meta-llama/llama-4-maverick-17b-128e-instruct",
             messages=[
                 {"role": "system", "content": "Eres un ingeniero DevOps experto en videojuegos que diseña estrategias prácticas y escalables."},
                 {"role": "user", "content": prompt},
