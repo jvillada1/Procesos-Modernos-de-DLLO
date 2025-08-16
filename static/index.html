@@ -48,7 +48,7 @@
       backdrop-filter: blur(2px);
     }
     label{display:block;margin:6px 0 8px 2px;font-size:20px}
-    textarea, input{
+    textarea, input, select{
       width:100%;
       font-family:'VT323', monospace;
       font-size:20px;
@@ -114,6 +114,16 @@
       <div class="row">
         <button id="askBtn">Preguntar</button>
         <button id="askMoreBtn" disabled>Profundizar respuesta</button>
+        <select id="langSelect" disabled>
+          <option value="en">Inglés</option>
+          <option value="es">Español</option>
+          <option value="fr">Francés</option>
+          <option value="de">Alemán</option>
+          <option value="it">Italiano</option>
+          <option value="pt">Portugués</option>
+        </select>
+        <button id="translateBtn" disabled>Traducir</button>
+        <button id="restoreBtn" disabled>Ver original</button>
         <span id="status" class="pill" style="display:none">⛏️ Minando conocimiento...</span>
       </div>
     </div>
@@ -135,7 +145,12 @@
     const sourcesEl = document.getElementById('sources');
     const statusEl = document.getElementById('status');
     const askMoreBtn = document.getElementById('askMoreBtn');
+    const translateBtn = document.getElementById('translateBtn');
+    const langSelect = document.getElementById('langSelect');
+    const restoreBtn = document.getElementById('restoreBtn');
+
     let answerData;
+    let originalAnswer = null;
 
     async function ask() {
       const question = qEl.value.trim();
@@ -147,6 +162,9 @@
       statusEl.style.display = "inline-block";
       answerEl.textContent = "⛏️ Buscando fragmentos relevantes...";
       askMoreBtn.disabled = true;
+      translateBtn.disabled = true;
+      langSelect.disabled = true;
+      restoreBtn.disabled = true;
 
       try {
         const res = await fetch("/ask", {
@@ -162,7 +180,11 @@
         }
 
         answerData = await res.json();
+        originalAnswer = answerData.answer;
         askMoreBtn.disabled = false;
+        translateBtn.disabled = false;
+        langSelect.disabled = false;
+        restoreBtn.disabled = true;
 
         answerEl.textContent = answerData.answer || "Sin respuesta.";
         sourcesEl.innerHTML = "";
@@ -203,6 +225,7 @@
         }
 
         answerData = await res.json();
+        originalAnswer = answerData.answer;
         answerEl.textContent = answerData.answer || "Sin respuesta.";
         sourcesEl.innerHTML = "";
         (answerData.sources || []).forEach(t => {
@@ -213,6 +236,8 @@
         });
 
         askMoreBtn.disabled = false;
+        translateBtn.disabled = false;
+        restoreBtn.disabled = true;
       } catch (e) {
         answerEl.textContent = "No se pudo conectar con el servidor: " + e;
       } finally {
@@ -220,8 +245,56 @@
       }
     }
 
-    askMoreBtn.addEventListener('click', askMore);
+    async function translate() {
+      if (!answerData || !answerData.answer) {
+        answerEl.textContent = "Primero haz una pregunta.";
+        return;
+      }
+
+      const target_lang = langSelect.value;
+      statusEl.style.display = "inline-block";
+      answerEl.textContent = "🌍 Traduciendo...";
+      translateBtn.disabled = true;
+
+      try {
+        const res = await fetch("/translate", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            text: answerData.answer,
+            target_lang
+          })
+        });
+
+        if (!res.ok) {
+          const txt = await res.text();
+          answerEl.textContent = "Error del servidor: " + txt;
+          return;
+        }
+
+        const data = await res.json();
+        answerEl.textContent = data.translated_text || "Sin traducción.";
+        restoreBtn.disabled = false;
+      } catch (e) {
+        answerEl.textContent = "No se pudo conectar con el servidor: " + e;
+      } finally {
+        statusEl.style.display = "none";
+        translateBtn.disabled = false;
+      }
+    }
+
+    function restoreOriginal() {
+      if (originalAnswer) {
+        answerEl.textContent = originalAnswer;
+        restoreBtn.disabled = true;
+      }
+    }
+
     askBtn.addEventListener('click', ask);
+    askMoreBtn.addEventListener('click', askMore);
+    translateBtn.addEventListener('click', translate);
+    restoreBtn.addEventListener('click', restoreOriginal);
+
     qEl.addEventListener('keydown', e => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
         ask();

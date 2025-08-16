@@ -1,22 +1,16 @@
-import os
-import json
+import os, json, requests, uvicorn
 import numpy as np
 from typing import List, Dict, Tuple
-import requests
 from sentence_transformers import SentenceTransformer 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-import uvicorn
-import extended_answer_agent
-import agent_devops
-
 from pathlib import Path
+import extended_answer_agent, agent_devops, translation_agent
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_PATH = BASE_DIR / "Data.json"
-
 
 # =========================
 # CONFIG
@@ -149,6 +143,10 @@ class AskMoreReq(BaseModel):
 class DevOpsAgent(BaseModel):
     answer: str
 
+class TranslationReq(BaseModel):
+    text: str
+    target_lang: str
+
 @app.get("/")
 def root():
     return FileResponse(os.path.join("static", "index.html"))
@@ -194,7 +192,15 @@ def full_devops(req: AskReq):
         "devops_plan": devops_out
     }
 
+@app.post("/translate")
+def translate(req: TranslationReq):
+    agent = translation_agent.TranslationAgent(
+        text=req.text,
+        target_lang=req.target_lang,
+        api_key=API_KEY
+    )
+    return agent.translate_content()
+
 if __name__ == "__main__":
     # Esto levanta FastAPI en local
     uvicorn.run(app, host="127.0.0.1", port=8000)
-
